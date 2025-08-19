@@ -1,0 +1,97 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Python files
+*.py text diff=python
+
+# HTML files
+*.html text diff=html
+
+# CSS files
+*.css text diff=css
+
+# JavaScript files
+*.js text diff=javascript
+
+# JSON files
+*.json text diff=json
+
+# Markdown files
+*.md text diff=markdown
+
+# Configuration files
+*.yml text
+*.yaml text
+*.toml text
+*.ini text
+*.cfg text
+*.conf text
+
+# Documentation
+*.txt text
+*.rst text
+
+# Shell scripts
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Windows batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Git files
+.gitattributes text
+.gitignore text
+.gitmodules text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.rar binary
+*.7z binary
+
+# Executable files
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Archive files
+*.tar binary
+*.gz binary
+*.bz2 binary
+*.xz binary
+
+# Database files
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Log files
+*.log text
+
+# Environment files
+.env text
+.env.* text
+
+# Requirements files
+requirements.txt text
+requirements/*.txt text
+Pipfile text
+Pipfile.lock text
+
+# Lock files
+package-lock.json text
+yarn.lock text
+poetry.lock text
+
+# Docker files
+Dockerfile text
+docker-compose*.yml text
+.dockerignore text
