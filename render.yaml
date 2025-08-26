@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: stock-sentiment-backend
+    env: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -b 0.0.0.0:${PORT} wsgi:application
+    healthCheckPath: /api/health
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: MOCK_DATA_ENABLED
+        value: "true"
+      - key: SECRET_KEY
+        generateValue: true
+      # Set CORS_ORIGINS to your frontend URL(s), comma-separated
+      - key: CORS_ORIGINS
+        value: http://localhost:3000
+      # Optional: provide real API keys to enable live data
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: REDDIT_USER_AGENT
+        sync: false
+

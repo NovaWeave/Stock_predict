@@ -27,7 +27,7 @@ app = Flask(__name__)
 app.config.from_object(get_config())
 app.secret_key = app.config.get('SECRET_KEY')
 Compress(app)
-CORS(app, resources={r"/api/*": {"origins": app.config.get('CORS_ORIGINS', ['*'])}})
+CORS(app, resources={r"/api/*": {"origins": app.config.get('CORS_ORIGINS', ['*'])}}, supports_credentials=True)
 
 class StockSentimentAnalyzer:
     def __init__(self):
@@ -74,8 +74,13 @@ class StockSentimentAnalyzer:
         self.cache = {}
         self.cache_duration = 300  # 5 minutes cache
         
-        # Mock data for testing when APIs are not available
-        self.mock_data_enabled = True
+        # Mock data for testing when APIs are not available (driven by config)
+        try:
+            # app is available in module scope
+            from stock_sentiment import app as _app  # type: ignore
+            self.mock_data_enabled = bool(_app.config.get('MOCK_DATA_ENABLED', True))
+        except Exception:
+            self.mock_data_enabled = os.getenv('MOCK_DATA_ENABLED', 'True').lower() == 'true'
 
     def _make_finnhub_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
         """Make a request to Finnhub API"""
@@ -234,38 +239,6 @@ class StockSentimentAnalyzer:
         except Exception as e:
             print(f"All stock data sources failed: {e}")
             return {"success": False, "error": "No data available from any source"}
-            
-            # Calculate technical indicators
-            hist['SMA_20'] = hist['Close'].rolling(window=20).mean()
-            hist['SMA_50'] = hist['Close'].rolling(window=50).mean()
-            hist['RSI'] = self._calculate_rsi(hist['Close'])
-            hist['MACD'], hist['MACD_Signal'] = self._calculate_macd(hist['Close'])
-            
-            current_price = hist['Close'].iloc[-1]
-            price_change = current_price - hist['Close'].iloc[-2] if len(hist) > 1 else 0
-            price_change_percent = (price_change / hist['Close'].iloc[-2]) * 100 if len(hist) > 1 else 0
-            
-            return {
-                "success": True,
-                "data": {
-                    "current_price": float(current_price),
-                    "price_change": float(price_change),
-                    "price_change_percent": float(price_change_percent),
-                    "volume": int(hist['Volume'].iloc[-1]),
-                    "historical_data": {
-                        "dates": hist.index.strftime('%Y-%m-%d').tolist(),
-                        "prices": hist['Close'].tolist(),
-                        "volumes": hist['Volume'].tolist()
-                    },
-                    "technical_indicators": {
-                        "sma_20": float(hist['SMA_20'].iloc[-1]) if not pd.isna(hist['SMA_20'].iloc[-1]) else None,
-                        "sma_50": float(hist['SMA_50'].iloc[-1]) if not pd.isna(hist['SMA_50'].iloc[-1]) else None,
-                        "rsi": float(hist['RSI'].iloc[-1]) if not pd.isna(hist['RSI'].iloc[-1]) else None,
-                        "macd": float(hist['MACD'].iloc[-1]) if not pd.isna(hist['MACD'].iloc[-1]) else None,
-                        "macd_signal": float(hist['MACD_Signal'].iloc[-1]) if not pd.isna(hist['MACD_Signal'].iloc[-1]) else None
-                    }
-                }
-            }
         except Exception as e:
             return {"success": False, "error": str(e)}
     
@@ -467,7 +440,44 @@ class StockSentimentAnalyzer:
             if datetime.now().timestamp() - cache_time < self.cache_duration:
                 return cached_data
         
-        if not self.finnhub_api_key:
+        if not self.finnhub_api_key or self.finnhub_api_key in ['placeholder_finnhub_key', 'placeholder', 'your_finnhub_api_key_here']:
+            # Fallback to Yahoo Finance basic profile
+            try:
+                stock = yf.Ticker(stock_symbol)
+                info = stock.info if hasattr(stock, 'info') else {}
+                name = info.get('longName') or info.get('shortName')
+                exchange = info.get('exchange') or info.get('fullExchangeName')
+                industry = info.get('industry') or info.get('sector')
+                website = info.get('website')
+                country = info.get('country')
+                market_cap = info.get('marketCap') or 0
+                if any([name, exchange, industry, website, country, market_cap]):
+                    return {
+                        "success": True,
+                        "data": {
+                            "name": name or 'Unknown',
+                            "country": country or 'Unknown',
+                            "exchange": exchange or 'Unknown',
+                            "industry": industry or 'Unknown',
+                            "website": website or '',
+                            "market_cap": market_cap or 0
+                        }
+                    }
+            except Exception:
+                pass
+            # As last resort, provide mock profile if enabled
+            if self.mock_data_enabled:
+                return {
+                    "success": True,
+                    "data": {
+                        "name": f"{stock_symbol} Corp.",
+                        "country": "United States",
+                        "exchange": "NASDAQ",
+                        "industry": "Technology",
+                        "website": "",
+                        "market_cap": 0
+                    }
+                }
             return {"success": False, "error": "Finnhub API key not configured"}
         
         try:
@@ -496,7 +506,62 @@ class StockSentimentAnalyzer:
 
     def get_finnhub_news(self, stock_symbol: str, days: int = 30) -> Dict[str, Any]:
         """Get company news from Finnhub API"""
-        if not self.finnhub_api_key:
+        if not self.finnhub_api_key or self.finnhub_api_key in ['placeholder_finnhub_key', 'placeholder', 'your_finnhub_api_key_here']:
+            # Fallback to Yahoo Finance news endpoint
+            try:
+                stock = yf.Ticker(stock_symbol)
+                if hasattr(stock, 'news'):
+                    news_items = stock.news or []
+                    news_data = []
+                    for article in news_items[:20]:
+                        headline = article.get('title', '')
+                        summary = article.get('summary', '')
+                        url = article.get('link') or article.get('url', '')
+                        source = (article.get('publisher') or article.get('source') or '')
+                        published = article.get('providerPublishTime') or article.get('pubDate') or 0
+                        text_for_sentiment = f"{headline} {summary}".strip()
+                        try:
+                            sentiment_score = self.analyze_sentiment(text_for_sentiment) if text_for_sentiment else 0.0
+                        except Exception:
+                            sentiment_score = 0.0
+                        news_data.append({
+                            'headline': headline,
+                            'summary': summary,
+                            'url': url,
+                            'source': source,
+                            'datetime': int(published) if isinstance(published, (int, float)) else 0,
+                            'sentiment': sentiment_score
+                        })
+                    if news_data:
+                        return {"success": True, "data": news_data}
+            except Exception:
+                pass
+            # As last resort, provide mock news if enabled
+            if self.mock_data_enabled:
+                from random import randint, choice
+                headlines = [
+                    f"{stock_symbol} shares edge higher amid market optimism",
+                    f"Analysts weigh in on {stock_symbol} quarterly outlook",
+                    f"{stock_symbol} announces new product updates"
+                ]
+                news_data = []
+                for i in range(5):
+                    headline = choice(headlines)
+                    summary = "Market commentators discuss potential catalysts and risks."
+                    text_for_sentiment = f"{headline} {summary}"
+                    try:
+                        sentiment_score = self.analyze_sentiment(text_for_sentiment)
+                    except Exception:
+                        sentiment_score = 0.0
+                    news_data.append({
+                        'headline': headline,
+                        'summary': summary,
+                        'url': '',
+                        'source': 'Mock',
+                        'datetime': int(datetime.now().timestamp()) - randint(0, 86400),
+                        'sentiment': sentiment_score
+                    })
+                return {"success": True, "data": news_data}
             return {"success": False, "error": "Finnhub API key not configured"}
         
         try:
@@ -504,7 +569,7 @@ class StockSentimentAnalyzer:
             start_date = end_date - timedelta(days=days)
             
             params = {
-                'q': stock_symbol,
+                'symbol': stock_symbol,
                 'from': start_date.strftime('%Y-%m-%d'),
                 'to': end_date.strftime('%Y-%m-%d')
             }
@@ -516,13 +581,20 @@ class StockSentimentAnalyzer:
             
             news_data = []
             for article in data[:20]:  # Limit to 20 articles
+                headline = article.get('headline', '')
+                summary = article.get('summary', '')
+                text_for_sentiment = f"{headline} {summary}".strip()
+                try:
+                    sentiment_score = self.analyze_sentiment(text_for_sentiment) if text_for_sentiment else 0.0
+                except Exception:
+                    sentiment_score = 0.0
                 news_data.append({
-                    'headline': article.get('headline', ''),
-                    'summary': article.get('summary', ''),
+                    'headline': headline,
+                    'summary': summary,
                     'url': article.get('url', ''),
                     'source': article.get('source', ''),
                     'datetime': article.get('datetime', 0),
-                    'sentiment': article.get('sentiment', 0)
+                    'sentiment': sentiment_score
                 })
             
             return {"success": True, "data": news_data}
@@ -619,7 +691,8 @@ def health_check():
         'services': {
             'reddit_api': hasattr(analyzer, 'reddit_enabled') and analyzer.reddit_enabled and os.getenv("REDDIT_CLIENT_ID", "placeholder") not in [None, "placeholder", "placeholder_client_id", "your_client_id_here"],
             'x_api': False,  # Disabled due to rate limits
-            'finnhub_api': hasattr(analyzer, 'finnhub_enabled') and analyzer.finnhub_enabled and analyzer.finnhub_api_key not in ['placeholder_finnhub_key', 'placeholder', 'your_finnhub_api_key_here']
+            'finnhub_api': hasattr(analyzer, 'finnhub_enabled') and analyzer.finnhub_enabled and analyzer.finnhub_api_key not in ['placeholder_finnhub_key', 'placeholder', 'your_finnhub_api_key_here'],
+            'yahoo_finance_fallback': True
         }
     })
 

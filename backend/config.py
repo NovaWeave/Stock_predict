@@ -34,7 +34,7 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
     
     # CORS Configuration
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,https://yourdomain.com').split(',')
+    CORS_ORIGINS = [o.strip() for o in os.environ.get('CORS_ORIGINS', 'http://localhost:3000,https://yourdomain.com').split(',') if o.strip()]
     CORS_METHODS = ['GET', 'POST', 'OPTIONS']
     CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization']
     

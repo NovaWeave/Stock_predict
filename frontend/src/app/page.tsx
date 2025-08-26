@@ -125,6 +125,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
   useEffect(() => {
     setIsVisible(true);
@@ -137,7 +138,7 @@ export default function Home() {
     setError('');
     
     try {
-      const response = await fetch(`/api/analyze/${stockSymbol.toUpperCase()}`);
+      const response = await fetch(`${API_BASE}/api/analyze/${stockSymbol.toUpperCase()}`);
       const data = await response.json();
       
       if (data.success) {
@@ -266,6 +267,18 @@ export default function Home() {
                     )}
                   </button>
                 </div>
+                {/* Quick ticker suggestions */}
+                <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                  {['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN'].map(t => (
+                    <button
+                      key={t}
+                      onClick={() => { setStockSymbol(t); setTimeout(handleAnalyze, 0); }}
+                      className="px-3 py-1.5 text-sm rounded-full bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10 transition-colors"
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
                 {error && (
                   <div className="mt-4 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-left">
                     <p className="flex items-center">
@@ -297,27 +310,46 @@ export default function Home() {
       </section>
 
       {/* Analysis Results */}
-      {analysisData && (
+      {(isLoading || analysisData) && (
         <section className="px-4 sm:px-6 lg:px-8 pb-24">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold text-white mb-4">
-                Analysis Results for <span className="gradient-text">{analysisData.stock_symbol}</span>
+                {isLoading ? (
+                  <span className="gradient-text">Analyzing...</span>
+                ) : (
+                  <>Analysis Results for <span className="gradient-text">{analysisData?.stock_symbol}</span></>
+                )}
               </h2>
               <p className="text-xl text-slate-300">Comprehensive insights and predictions</p>
             </div>
             
-            <StockAnalysis data={analysisData} />
+            {isLoading && !analysisData ? (
+              <div className="glass-effect rounded-3xl border border-white/10 p-10 animate-pulse">
+                <div className="h-6 w-1/3 bg-white/10 rounded mb-6"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[...Array(4)].map((_,i) => (
+                    <div key={i} className="h-32 bg-white/5 rounded-2xl border border-white/10"></div>
+                  ))}
+                </div>
+              </div>
+            ) : analysisData ? (
+              <StockAnalysis data={analysisData} />
+            ) : null}
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-              <SentimentChart data={analysisData} />
-              <CompanyProfile data={analysisData} />
-            </div>
+            {analysisData && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+                <SentimentChart data={analysisData} />
+                <CompanyProfile data={analysisData} />
+              </div>
+            )}
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-              <SocialFeed data={analysisData} />
-              <NewsSection data={analysisData} />
-            </div>
+            {analysisData && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+                <SocialFeed data={analysisData} />
+                <NewsSection data={analysisData} />
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -401,6 +433,15 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* Toast */}
+      {error && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <div className="px-4 py-3 rounded-xl bg-red-600 text-white shadow-lg border border-red-400/50">
+            {error}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

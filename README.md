@@ -1,41 +1,42 @@
 ## Stock Sentiment Analyzer
 
-Production-ready, full-stack app for AI-powered stock sentiment analysis from Reddit and X, combined with financial data and technical indicators.
+Production-ready monorepo with a Flask backend and Next.js frontend.
 
-### Monorepo Structure
-
-- `backend/` Flask API (served via WSGI/ASGI)
-- `frontend/` Next.js 15 app
+### Structure
+- `backend/`: Flask API (WSGI via Gunicorn). Endpoints under `/api/*`.
+- `frontend/`: Next.js app with Tailwind UI.
 
 ### Quick Start (Local)
-
-1. Backend
+1) Backend
    - cd backend
    - python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
-   - Copy `env.template` to `.env` and fill values
-   - Run: `.venv/Scripts/python stock_sentiment.py --web`
+   - Optional: copy `env.template` → `.env` (or set env vars)
+   - Set env (PowerShell):
+     - `$env:FLASK_ENV='production'`
+     - `$env:MOCK_DATA_ENABLED='true'`
+   - Run: `.venv/Scripts/python stock_sentiment.py --web` or `python stock_sentiment.py --web`
+   - API: http://localhost:5000/api/health
 
-2. Frontend
+2) Frontend
    - cd frontend
    - npm install
-   - npm run dev
-   - Open http://localhost:3000
+   - Create `.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:5000`
+   - npm run dev → http://localhost:3000
 
-### Production
+### Deploy (Render)
+Option A: Blueprint
+- New → Blueprint on Render, select this repo. Uses `render.yaml` to provision the backend.
 
-- Backend
-  - Use gunicorn/uvicorn behind Nginx/Render/Fly/Heroku
-  - Set env `FLASK_ENV=production` and `SECRET_KEY`
-- Frontend
-  - Build with `npm run build` and host on Vercel/Netlify, or serve statically
-  - Set `NEXT_PUBLIC_API_BASE_URL` to your backend URL
+Option B: Manual
+- Root: `backend`
+- Build: `pip install -r requirements.txt`
+- Start: `gunicorn -w 2 -b 0.0.0.0:${PORT} wsgi:application`
+- Health: `/api/health`
+- Env: `FLASK_ENV=production`, `SECRET_KEY`, `CORS_ORIGINS`, optional `MOCK_DATA_ENABLED=true`, `FINNHUB_API_KEY`, `REDDIT_CLIENT_ID/_SECRET/_USER_AGENT`
 
-### Security
+Frontend (Vercel/Render/Netlify)
+- Set `NEXT_PUBLIC_API_BASE_URL` to the backend URL (e.g., `https://<service>.onrender.com`).
 
-- SECRET_KEY must be set in environment (never commit secrets)
-- CORS origins controlled via `CORS_ORIGINS`
-
-### License
-
-MIT
+### Notes
+- Without keys, backend uses Yahoo Finance fallback and mock data where needed.
 

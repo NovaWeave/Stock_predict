@@ -25,6 +25,10 @@ Modern Next.js frontend for the Stock Sentiment Analyzer application.
 
 - Node.js 18+ 
 - Backend service running on `http://localhost:5000`
+- Create `.env.local` with:
+```
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+```
 
 ### Installation
 

@@ -117,11 +117,11 @@ export SECRET_KEY="$(python -c "import secrets; print(secrets.token_hex(32))")"
 gunicorn -w 2 -b 0.0.0.0:5000 wsgi:application
 ```
 
-Or on Windows (PowerShell):
+On Windows (PowerShell) for local dev you can run:
 ```powershell
 $env:FLASK_ENV='production'
-$env:SECRET_KEY=(python -c "import secrets; print(secrets.token_hex(32))")
-gunicorn -w 2 -b 0.0.0.0:5000 wsgi:application
+$env:MOCK_DATA_ENABLED='true'
+python stock_sentiment.py --web
 ```
 
 Set `CORS_ORIGINS` to your frontend origin for strict CORS.
@@ -203,12 +203,26 @@ curl "http://localhost:5000/api/analyze/AAPL"
 python stock_sentiment.py --web
 ```
 
-### Production Deployment
-The application is ready for deployment on:
-- **Vercel**: Serverless deployment
-- **Heroku**: Traditional hosting
-- **AWS/GCP**: Cloud deployment
-- **Docker**: Containerized deployment
+### Production Deployment (Render)
+
+Use a `render.yaml` for Infrastructure as Code, or create a Web Service in the Render Dashboard pointing to the `backend` directory.
+
+Required environment variables (set in Render):
+- `FLASK_ENV=production`
+- `SECRET_KEY` (generate a strong random hex string)
+- `CORS_ORIGINS` (comma-separated frontend origins)
+- `FINNHUB_API_KEY` (optional; mock data will be used if absent)
+- `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USER_AGENT` (optional)
+- `MOCK_DATA_ENABLED=true` (recommended if you don't have external API keys)
+
+Start command:
+```
+gunicorn -w 2 -b 0.0.0.0:${PORT} wsgi:application
+```
+
+Health check path: `/api/health`
+
+Alternatively, commit the `render.yaml` at the repo root and click New > Blueprint on Render to auto-provision. The blueprint points to `backend` and sets sensible defaults including `MOCK_DATA_ENABLED=true`.
 
 ## 🤝 Contributing
 
