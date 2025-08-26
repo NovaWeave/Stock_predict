@@ -219,10 +219,10 @@ class StockSentimentAnalyzer:
         try:
             print(f"Fetching stock data for {stock_symbol}")
             
-            # Try Yahoo Finance first
+            # Try Yahoo Finance first (per yfinance docs: Ticker.history)
             try:
                 stock = yf.Ticker(stock_symbol)
-                hist = stock.history(period=f"{days}d")
+                hist = stock.history(period=f"{days}d", auto_adjust=True, actions=False)
                 
                 print(f"Yahoo Finance history data shape: {hist.shape}")
                 if not hist.empty:
@@ -239,12 +239,16 @@ class StockSentimentAnalyzer:
         except Exception as e:
             print(f"All stock data sources failed: {e}")
             return {"success": False, "error": "No data available from any source"}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
     
     def _process_yahoo_data(self, hist: pd.DataFrame) -> Dict[str, Any]:
         """Process Yahoo Finance data and calculate indicators"""
         try:
+            # Sanity: ensure Close exists and index is datetime
+            if 'Close' not in hist.columns and 'close' in hist.columns:
+                hist = hist.rename(columns={'close': 'Close'})
+            if not hasattr(hist.index, 'strftime'):
+                hist.index = pd.to_datetime(hist.index)
+
             # Calculate technical indicators
             hist['SMA_20'] = hist['Close'].rolling(window=20).mean()
             hist['SMA_50'] = hist['Close'].rolling(window=50).mean()
@@ -768,6 +772,32 @@ def get_finnhub_news(stock_symbol: str):
         return jsonify(result)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/', methods=['GET'])
+def index_root():
+    """Root route for basic status and helpful links."""
+    return jsonify({
+        'service': app.config.get('API_TITLE', 'Stock Sentiment Analyzer API'),
+        'status': 'ok',
+        'version': app.config.get('API_VERSION', 'v1.0.0'),
+        'endpoints': {
+            'health': '/api/health',
+            'analyze_example': '/api/analyze/AAPL',
+            'trend_example': '/api/trend/AAPL',
+            'stock_example': '/api/stock/AAPL',
+            'profile_example': '/api/finnhub/profile/AAPL',
+            'news_example': '/api/finnhub/news/AAPL'
+        }
+    })
+
+@app.route('/api/version', methods=['GET'])
+def api_version():
+    """Return API version and config flags (safe subset)."""
+    return jsonify({
+        'version': app.config.get('API_VERSION', 'v1.0.0'),
+        'mock_data_enabled': bool(app.config.get('MOCK_DATA_ENABLED', True)),
+        'cors_origins': app.config.get('CORS_ORIGINS', ['*'])
+    })
 
 def main():
     """CLI interface for the analyzer"""
