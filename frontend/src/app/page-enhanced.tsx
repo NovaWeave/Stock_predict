@@ -8,9 +8,8 @@ import SocialFeed from '@/components/SocialFeed';
 import CompanyProfile from '@/components/CompanyProfile';
 import NewsSection from '@/components/NewsSection';
 import { EnhancedErrorBoundary } from '@/components/EnhancedErrorBoundary';
-import { useToast, useErrorToast, useLoadingToast } from '@/components/Toast';
-import { AnalysisLoading, InlineLoading } from '@/components/LoadingStates';
-import { useStockAnalysis, useStockSymbolValidator } from '@/hooks';
+import { useErrorToast, useLoadingToast } from '@/components/Toast';
+import { AnalysisLoading } from '@/components/LoadingStates';
 import { AppProviders } from '@/components/AppProviders';
 import { 
   ErrorClassifier, 
@@ -141,7 +140,6 @@ function HomePageContent() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
   
   // Toast hooks
-  const { showSuccess, showError, showInfo } = useToast();
   const { showNetworkError, showValidationError, showApiError } = useErrorToast();
   const { showAsyncOperation } = useLoadingToast();
 

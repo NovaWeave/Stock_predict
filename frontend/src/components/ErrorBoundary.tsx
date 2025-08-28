@@ -75,7 +75,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               </h1>
               
               <p className="text-slate-300 mb-6">
-                We encountered an unexpected error. Don't worry, this happens sometimes.
+                We encountered an unexpected error. Don&apos;t worry, this happens sometimes.
                 You can try refreshing the page or go back to the home page.
               </p>
 

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import React from 'react';
 
 // Performance metrics interface
 export interface PerformanceMetrics {
@@ -89,7 +90,7 @@ export const performanceStore = new PerformanceStore();
 
 // Hook to measure component render performance
 export function useRenderPerformance(componentName: string, enabled: boolean = true) {
-  const renderStartRef = useRef<number>();
+  const renderStartRef = useRef<number | undefined>(undefined);
   const renderCountRef = useRef(0);
 
   useEffect(() => {
@@ -118,7 +119,7 @@ export function useSlowRenderDetection(
   threshold: number = 16, // 60fps threshold
   onSlowRender?: (renderTime: number) => void
 ) {
-  const renderStartRef = useRef<number>();
+  const renderStartRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     renderStartRef.current = performance.now();
@@ -207,8 +208,8 @@ export function analyzeBundleSize() {
 
 // Memory leak detection
 export function useMemoryLeakDetection(componentName: string) {
-  const mountTimeRef = useRef<number>();
-  const initialMemoryRef = useRef<number>();
+  const mountTimeRef = useRef<number | undefined>(undefined);
+  const initialMemoryRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     mountTimeRef.current = Date.now();
@@ -238,7 +239,7 @@ export function useMemoryLeakDetection(componentName: string) {
 }
 
 // Performance debugging component
-export function PerformanceDebugger({ enabled = false }: { enabled?: boolean }) {
+export function PerformanceDebugger({ enabled = false }: { enabled?: boolean }): React.ReactElement | null {
   const [metrics, setMetrics] = useState<PerformanceMetrics[]>([]);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -251,7 +252,7 @@ export function PerformanceDebugger({ enabled = false }: { enabled?: boolean }) 
   if (!enabled || typeof window === 'undefined') return null;
 
   return (
-    <>
+    <React.Fragment>
       {/* Toggle button */}
       <button
         onClick={() => setIsVisible(!isVisible)}
@@ -300,7 +301,7 @@ export function PerformanceDebugger({ enabled = false }: { enabled?: boolean }) 
           )}
         </div>
       )}
-    </>
+    </React.Fragment>
   );
 }
 

@@ -26,10 +26,13 @@ export function renderWithProviders(
 
   if (withProviders) {
     Wrapper = ({ children }) => <AppProviders>{children}</AppProviders>;
+    Wrapper.displayName = 'TestAppProvidersWrapper';
   } else if (withToast) {
     Wrapper = ({ children }) => <ToastProvider>{children}</ToastProvider>;
+    Wrapper.displayName = 'TestToastWrapper';
   } else {
     Wrapper = ({ children }) => <>{children}</>;
+    Wrapper.displayName = 'TestFragmentWrapper';
   }
 
   return render(ui, { wrapper: Wrapper, ...renderOptions });

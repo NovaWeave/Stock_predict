@@ -130,7 +130,8 @@ check_resources() {
     
     # Memory usage
     memory_usage=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}')
-    if (( $(echo "$memory_usage > 90" | bc -l) )); then
+    memory_int=$(echo "$memory_usage" | cut -d. -f1)
+    if [[ "$memory_int" -gt 90 ]]; then
         log_warning "High memory usage: ${memory_usage}%"
     else
         log_success "Memory usage: ${memory_usage}%"
