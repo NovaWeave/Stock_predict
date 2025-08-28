@@ -1,0 +1,408 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  * {
+    @apply border-slate-700;
+  }
+  
+  body {
+    @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Performance optimizations */
+    transform: translateZ(0); /* Enable hardware acceleration */
+    backface-visibility: hidden; /* Prevent flicker on transforms */
+  }
+
+  /* Optimize font rendering */
+  html {
+    font-display: swap; /* Improve font loading performance */
+  }
+
+  /* Improve scrolling performance */
+  * {
+    scroll-behavior: smooth;
+  }
+
+  /* Reduce paint operations */
+  img, video, canvas, svg {
+    max-width: 100%;
+    height: auto;
+    transform: translateZ(0); /* Force GPU acceleration */
+  }
+
+  /* Optimize animations for 60fps */
+  @media (prefers-reduced-motion: no-preference) {
+    * {
+      animation-duration: 0.15s;
+      animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+
+  /* Respect user preferences for reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+    /* Optimize backdrop-filter for performance */
+    will-change: backdrop-filter;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300;
+    /* Use transform instead of changing layout properties */
+    will-change: transform, box-shadow;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.2);
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent;
+    /* Optimize gradient rendering */
+    -webkit-background-clip: text;
+    background-attachment: fixed;
+  }
+  
+  .gradient-border {
+    @apply relative;
+    /* Use pseudo-elements for better performance */
+  }
+  
+  .gradient-border::before {
+    content: '';
+    @apply absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500;
+    z-index: -1;
+    padding: 2px;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: subtract;
+    -webkit-mask-composite: xor;
+  }
+  
+  /* Optimized animations using transforms only */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+    will-change: transform;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    will-change: opacity;
+  }
+  
+  .animate-bounce-slow {
+    animation: bounce-slow 2s infinite;
+    will-change: transform;
+  }
+
+  /* Loading states optimized for performance */
+  .loading-skeleton {
+    @apply animate-pulse bg-slate-700 rounded;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    background-size: 200px 100%;
+    background-repeat: no-repeat;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Optimized scrollbar */
+  .scrollbar-optimized {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(71 85 105) rgb(30 41 59);
+  }
+
+  .scrollbar-optimized::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-optimized::-webkit-scrollbar-track {
+    @apply bg-slate-800 rounded-full;
+  }
+
+  .scrollbar-optimized::-webkit-scrollbar-thumb {
+    @apply bg-slate-600 rounded-full;
+    transition: background-color 0.2s ease;
+  }
+
+  .scrollbar-optimized::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
+}
+
+@layer utilities {
+  /* Performance-focused utilities */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  .will-change-auto {
+    will-change: auto;
+  }
+
+  .will-change-scroll {
+    will-change: scroll-position;
+  }
+
+  .will-change-contents {
+    will-change: contents;
+  }
+
+  .optimize-legibility {
+    text-rendering: optimizeLegibility;
+  }
+
+  .optimize-speed {
+    text-rendering: optimizeSpeed;
+  }
+
+  /* Contain layout to improve performance */
+  .contain-layout {
+    contain: layout;
+  }
+
+  .contain-paint {
+    contain: paint;
+  }
+
+  .contain-size {
+    contain: size;
+  }
+
+  .contain-strict {
+    contain: strict;
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Performance-optimized visibility utilities */
+  .content-visibility-auto {
+    content-visibility: auto;
+  }
+
+  .content-visibility-hidden {
+    content-visibility: hidden;
+  }
+}
+
+/* Optimized keyframe animations using only transform and opacity */
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px) translateZ(0);
+  }
+  50% { 
+    transform: translateY(-20px) translateZ(0);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { 
+    opacity: 1;
+  }
+  50% { 
+    opacity: 0.7;
+  }
+}
+
+@keyframes bounce-slow {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% { 
+    background-position: -200px 0;
+  }
+  100% { 
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translate3d(0, 30px, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translate3d(0, -30px, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Performance optimizations */
+* {
+  box-sizing: border-box;
+}
+
+/* Reduce repaints and reflows */
+img, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Improve font loading */
+@font-face {
+  font-family: 'Inter';
+  font-display: swap;
+}
+
+/* Focus styles for accessibility with performance in mind */
+*:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  /* Use box-shadow instead of outline for better performance */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-effect {
+    @apply bg-black/80 border-white/50;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-pulse-slow,
+  .animate-bounce-slow {
+    animation: none;
+  }
+  
+  .card-hover {
+    transition: none;
+  }
+  
+  .card-hover:hover {
+    transform: none;
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Print optimizations */
+@media print {
+  .animate-float,
+  .animate-pulse-slow,
+  .animate-bounce-slow {
+    animation: none !important;
+  }
+  
+  .glass-effect {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* Performance monitoring in development */
+@media screen and (min-width: 1024px) {
+  body {
+    /* Enable performance monitoring on larger screens */
+    contain: layout style paint;
+  }
+}

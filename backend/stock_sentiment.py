@@ -108,9 +108,7 @@ class StockSentimentAnalyzer:
             
         # Check if we have valid API credentials
         if os.getenv('REDDIT_CLIENT_ID') == 'placeholder' or not os.getenv('REDDIT_CLIENT_ID'):
-            print("Reddit API credentials not configured - using mock data")
-            if self.mock_data_enabled:
-                return self._generate_mock_reddit_posts(stock_symbol, limit)
+            print("Reddit API credentials not configured")
             return pd.DataFrame()
             
         subreddit_query = 'stocks+investing+wallstreetbets'
@@ -145,69 +143,13 @@ class StockSentimentAnalyzer:
                 posts_df['sentiment'] = 0.0
         return posts_df
     
-    def _generate_mock_reddit_posts(self, stock_symbol: str, limit: int = 10) -> pd.DataFrame:
-        """Generate mock Reddit posts for testing"""
-        import random
-        
-        mock_posts = []
-        sentiments = ['bullish', 'bearish', 'neutral']
-        subreddits = ['stocks', 'investing', 'wallstreetbets']
-        
-        for i in range(limit):
-            sentiment = random.choice(sentiments)
-            text = f"I've been watching {stock_symbol} for a while now. The {sentiment} sentiment seems strong. What's your take on this?"
-            score = random.randint(10, 500)
-            created_time = datetime.now() - timedelta(hours=random.randint(1, 24))
-            post = {
-                "title": f"{stock_symbol} {sentiment.upper()} - What do you think?",
-                "text": text,
-                "score": score,
-                "created_utc": created_time,
-                "url": f"https://reddit.com/r/{random.choice(subreddits)}/mock_post_{i}",
-                "author": f"user_{random.randint(1000, 9999)}",
-                "subreddit": random.choice(subreddits)
-            }
-            try:
-                post["sentiment"] = self.analyze_sentiment(f"{post['title']} {post['text']}")
-            except Exception:
-                post["sentiment"] = 0.0
-            mock_posts.append(post)
-        
-        return pd.DataFrame(mock_posts)
+
     
-    def _generate_mock_x_posts(self, stock_symbol: str, limit: int = 10) -> List[Dict]:
-        """Generate mock X posts for testing"""
-        import random
-        
-        mock_posts = []
-        sentiments = ['bullish', 'bearish', 'neutral']
-        
-        for i in range(limit):
-            sentiment = random.choice(sentiments)
-            text = f"{stock_symbol} looking {sentiment} today! 📈 #stocks #trading"
-            post = {
-                "text": text,
-                "created_at": (datetime.now() - timedelta(hours=random.randint(1, 24))).isoformat(),
-                "like_count": random.randint(5, 200),
-                "retweet_count": random.randint(1, 50),
-                "reply_count": random.randint(0, 20),
-                "quote_count": random.randint(0, 10),
-                "id": f"mock_tweet_{i}"
-            }
-            try:
-                post["sentiment"] = self.analyze_sentiment(text)
-            except Exception:
-                post["sentiment"] = 0.0
-            mock_posts.append(post)
-        
-        return mock_posts
+
 
     def get_x_posts(self, stock_symbol: str, limit: int = 100) -> List[Dict]:
         """Fetch X (Twitter) posts about a stock"""
-        # Always use mock data for now to avoid rate limits
-        print("Using mock X data to avoid rate limits")
-        if self.mock_data_enabled:
-            return self._generate_mock_x_posts(stock_symbol, limit)
+        print("X API not configured")
         return []
 
     def analyze_sentiment(self, text: str) -> float:
@@ -286,19 +228,19 @@ class StockSentimentAnalyzer:
     def _get_finnhub_stock_data(self, stock_symbol: str, days: int = 30) -> Dict[str, Any]:
         """Get stock data from Finnhub API using official client"""
         if not hasattr(self, 'finnhub_enabled') or not self.finnhub_enabled:
-            print("Finnhub client not enabled - using mock data")
-            return self._generate_mock_stock_data(stock_symbol)
+            print("Finnhub client not enabled")
+            return {"success": False, "error": "Finnhub not available"}
         
         if not self.finnhub_api_key or self.finnhub_api_key in ['placeholder_finnhub_key', 'placeholder', 'your_finnhub_api_key_here']:
-            print("Finnhub API not configured - using mock data")
-            return self._generate_mock_stock_data(stock_symbol)
+            print("Finnhub API not configured")
+            return {"success": False, "error": "Finnhub API key not configured"}
         
         try:
             # Get current quote using Finnhub client
             quote_data = self.finnhub_client.quote(symbol=stock_symbol)
             if not quote_data or 'c' not in quote_data:
-                print("Failed to fetch quote data - using mock data")
-                return self._generate_mock_stock_data(stock_symbol)
+                print("Failed to fetch quote data")
+                return {"success": False, "error": "Failed to fetch quote data"}
             
             current_price = quote_data['c']
             
@@ -314,8 +256,8 @@ class StockSentimentAnalyzer:
             )
             
             if not hist_data or hist_data.get('s') != 'ok':
-                print("Failed to fetch historical data - using mock data")
-                return self._generate_mock_stock_data(stock_symbol)
+                print("Failed to fetch historical data")
+                return {"success": False, "error": "Failed to fetch historical data"}
             
             # Process historical data
             timestamps = hist_data.get('t', [])
@@ -366,57 +308,10 @@ class StockSentimentAnalyzer:
             }
             
         except Exception as e:
-            print(f"Finnhub stock data error: {e} - using mock data")
-            if self.mock_data_enabled:
-                return self._generate_mock_stock_data(stock_symbol)
+            print(f"Finnhub stock data error: {e}")
             return {"success": False, "error": str(e)}
     
-    def _generate_mock_stock_data(self, stock_symbol: str) -> Dict[str, Any]:
-        """Generate mock stock data for testing"""
-        import random
-        
-        # Generate mock historical data
-        base_price = random.uniform(50, 200)
-        dates = []
-        prices = []
-        volumes = []
-        
-        for i in range(30):
-            date = datetime.now() - timedelta(days=30-i)
-            dates.append(date.strftime('%Y-%m-%d'))
-            
-            # Add some price variation
-            variation = random.uniform(-0.05, 0.05)
-            base_price *= (1 + variation)
-            prices.append(round(base_price, 2))
-            
-            volumes.append(random.randint(1000000, 10000000))
-        
-        current_price = prices[-1]
-        price_change = current_price - prices[-2] if len(prices) > 1 else 0
-        price_change_percent = (price_change / prices[-2]) * 100 if len(prices) > 1 else 0
-        
-        return {
-            "success": True,
-            "data": {
-                "current_price": float(current_price),
-                "price_change": float(price_change),
-                "price_change_percent": float(price_change_percent),
-                "volume": int(volumes[-1]),
-                "historical_data": {
-                    "dates": dates,
-                    "prices": prices,
-                    "volumes": volumes
-                },
-                "technical_indicators": {
-                    "sma_20": float(sum(prices[-20:]) / min(20, len(prices))),
-                    "sma_50": float(sum(prices[-50:]) / min(50, len(prices))) if len(prices) >= 50 else None,
-                    "rsi": random.uniform(30, 70),
-                    "macd": random.uniform(-2, 2),
-                    "macd_signal": random.uniform(-2, 2)
-                }
-            }
-        }
+
 
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate RSI technical indicator"""
@@ -469,19 +364,7 @@ class StockSentimentAnalyzer:
                     }
             except Exception:
                 pass
-            # As last resort, provide mock profile if enabled
-            if self.mock_data_enabled:
-                return {
-                    "success": True,
-                    "data": {
-                        "name": f"{stock_symbol} Corp.",
-                        "country": "United States",
-                        "exchange": "NASDAQ",
-                        "industry": "Technology",
-                        "website": "",
-                        "market_cap": 0
-                    }
-                }
+            # Fallback to basic profile
             return {"success": False, "error": "Finnhub API key not configured"}
         
         try:
@@ -540,32 +423,7 @@ class StockSentimentAnalyzer:
                         return {"success": True, "data": news_data}
             except Exception:
                 pass
-            # As last resort, provide mock news if enabled
-            if self.mock_data_enabled:
-                from random import randint, choice
-                headlines = [
-                    f"{stock_symbol} shares edge higher amid market optimism",
-                    f"Analysts weigh in on {stock_symbol} quarterly outlook",
-                    f"{stock_symbol} announces new product updates"
-                ]
-                news_data = []
-                for i in range(5):
-                    headline = choice(headlines)
-                    summary = "Market commentators discuss potential catalysts and risks."
-                    text_for_sentiment = f"{headline} {summary}"
-                    try:
-                        sentiment_score = self.analyze_sentiment(text_for_sentiment)
-                    except Exception:
-                        sentiment_score = 0.0
-                    news_data.append({
-                        'headline': headline,
-                        'summary': summary,
-                        'url': '',
-                        'source': 'Mock',
-                        'datetime': int(datetime.now().timestamp()) - randint(0, 86400),
-                        'sentiment': sentiment_score
-                    })
-                return {"success": True, "data": news_data}
+            # Fallback to basic news
             return {"success": False, "error": "Finnhub API key not configured"}
         
         try:

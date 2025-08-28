@@ -1,22 +1,32 @@
+# Core Flask dependencies
 flask==2.3.3
 flask-cors==4.0.0
 flask-compress==1.15
+flask-limiter==3.5.0
 gunicorn==21.2.0
 python-dotenv==1.0.0
 werkzeug==2.3.7
 requests==2.31.0
 
-# Data and analysis libs actually used
+# Data processing and analysis
 pandas==2.1.1
 numpy==1.24.3
 nltk==3.8.1
 
-# APIs
+# External API integrations
 praw==7.8.1
 tweepy==4.14.0
-yfinance==0.2.65
-finnhub-python
+yfinance==0.2.18
+finnhub-python==2.4.19
 
-# Misc
+# Utilities
 python-dateutil==2.8.2
 typing-extensions==4.7.1
+
+# Optional: Caching and performance
+redis==5.0.1
+
+# Development and testing (install with --dev flag)
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-mock==3.12.0

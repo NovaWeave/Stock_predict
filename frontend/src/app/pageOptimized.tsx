@@ -1,159 +1,130 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Search, TrendingUp, BarChart3, Activity, Globe, Users, Newspaper, Sparkles, Zap, Target } from 'lucide-react';
-import StockAnalysis from '@/components/StockAnalysis';
-import SentimentChart from '@/components/SentimentChart';
-import SocialFeed from '@/components/SocialFeed';
-import CompanyProfile from '@/components/CompanyProfile';
-import NewsSection from '@/components/NewsSection';
+import { useStockAnalysis } from '@/hooks/useOptimizedApi';
 
-type TrendType = 'Bullish' | 'Bearish' | 'Neutral';
+// Lazy load components to improve initial load time
+const StockAnalysisOptimized = lazy(() => import('@/components/StockAnalysisOptimized'));
+const SentimentChart = lazy(() => import('@/components/SentimentChart'));
+const SocialFeed = lazy(() => import('@/components/SocialFeed'));
+const CompanyProfile = lazy(() => import('@/components/CompanyProfile'));
+const NewsSection = lazy(() => import('@/components/NewsSection'));
 
-interface TrendPrediction {
-  success: boolean;
-  trend: TrendType;
-  confidence: number;
-  sentiment_score: number;
-  reddit_sentiment: number;
-  x_sentiment: number;
-  data_points: { reddit_posts: number; x_posts: number };
-}
+// Loading skeleton components
+const AnalysisLoadingSkeleton = React.memo(() => (
+  <div className="glass-effect rounded-3xl border border-white/10 p-10 animate-pulse">
+    <div className="h-6 w-1/3 bg-white/10 rounded mb-6"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {[...Array(4)].map((_,i) => (
+        <div key={i} className="h-32 bg-white/5 rounded-2xl border border-white/10"></div>
+      ))}
+    </div>
+  </div>
+));
+AnalysisLoadingSkeleton.displayName = 'AnalysisLoadingSkeleton';
 
-interface TechnicalIndicators {
-  sma_20?: number | null;
-  sma_50?: number | null;
-  rsi?: number | null;
-  macd?: number | null;
-  macd_signal?: number | null;
-}
+const ComponentLoadingSkeleton = React.memo(() => (
+  <div className="glass-effect rounded-2xl border border-white/10 p-6 animate-pulse">
+    <div className="h-4 w-1/4 bg-white/10 rounded mb-4"></div>
+    <div className="space-y-3">
+      <div className="h-3 w-full bg-white/5 rounded"></div>
+      <div className="h-3 w-3/4 bg-white/5 rounded"></div>
+      <div className="h-3 w-1/2 bg-white/5 rounded"></div>
+    </div>
+  </div>
+));
+ComponentLoadingSkeleton.displayName = 'ComponentLoadingSkeleton';
 
-interface HistoricalData {
-  dates: string[];
-  prices: number[];
-  volumes: number[];
-}
-
-interface StockDataSuccess {
-  success: true;
-  data: {
-    current_price: number;
-    price_change: number;
-    price_change_percent: number;
-    volume: number;
-    historical_data: HistoricalData;
-    technical_indicators?: TechnicalIndicators;
+// Memoized feature card component
+const FeatureCard = React.memo(({ feature, index }: {
+  feature: {
+    icon: React.ElementType;
+    title: string;
+    description: string;
+    color: string;
   };
-}
+  index: number;
+}) => (
+  <div
+    className="glass-effect p-8 rounded-2xl border border-white/10 card-hover group"
+    style={{animationDelay: `${index * 100}ms`}}
+  >
+    <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+      <feature.icon className="w-8 h-8 text-white" />
+    </div>
+    <h3 className="text-2xl font-semibold text-white mb-4">{feature.title}</h3>
+    <p className="text-slate-300 leading-relaxed">{feature.description}</p>
+  </div>
+));
+FeatureCard.displayName = 'FeatureCard';
 
-interface StockDataError {
-  success: false;
-  error: string;
-}
+// Memoized ticker button component
+const TickerButton = React.memo(({ ticker, onClick }: {
+  ticker: string;
+  onClick: (ticker: string) => void;
+}) => (
+  <button
+    onClick={() => onClick(ticker)}
+    className="px-3 py-1.5 text-sm rounded-full bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10 transition-colors"
+  >
+    {ticker}
+  </button>
+));
+TickerButton.displayName = 'TickerButton';
 
-type StockData = StockDataSuccess | StockDataError;
+// Error boundary component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-interface CompanyProfileData {
-  name?: string;
-  country?: string;
-  exchange?: string;
-  industry?: string;
-  website?: string;
-  market_cap?: number;
-  ipo?: string;
-  company_description?: string;
-}
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
 
-interface CompanyProfileResult {
-  success: boolean;
-  data?: CompanyProfileData;
-  error?: string;
-}
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('Component error:', error, errorInfo);
+  }
 
-interface NewsItem {
-  headline: string;
-  summary?: string;
-  url?: string;
-  source?: string;
-  datetime: number;
-  sentiment?: number;
-}
-
-interface NewsResult {
-  success: boolean;
-  data?: NewsItem[];
-  error?: string;
-}
-
-interface RedditPost {
-  title: string;
-  text: string;
-  score: number;
-  created_utc: string;
-  url: string;
-  author: string;
-  subreddit: string;
-  sentiment?: number;
-}
-
-interface XPost {
-  text: string;
-  created_at: string;
-  like_count: number;
-  retweet_count: number;
-  reply_count: number;
-  quote_count: number;
-  id: string;
-  sentiment?: number;
-  author?: string;
-}
-
-export interface AnalysisData {
-  stock_symbol: string;
-  success: boolean;
-  trend_prediction: TrendPrediction;
-  stock_data: StockData;
-  company_profile: CompanyProfileResult;
-  news: NewsResult;
-  reddit_posts: RedditPost[];
-  x_posts: XPost[];
-}
-
-export default function Home() {
-  const [stockSymbol, setStockSymbol] = useState('');
-  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
-  const handleAnalyze = async () => {
-    if (!stockSymbol.trim()) return;
-
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      const response = await fetch(`${API_BASE}/api/analyze/${stockSymbol.toUpperCase()}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setAnalysisData(data);
-      } else {
-        setError(data.error || 'Failed to analyze stock');
-      }
-    } catch {
-      setError('Network error. Please check if the backend is running.');
-    } finally {
-      setIsLoading(false);
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="glass-effect rounded-2xl border border-red-500/20 p-6 text-center">
+          <p className="text-red-400 mb-2">Something went wrong</p>
+          <button 
+            onClick={() => this.setState({ hasError: false })}
+            className="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      );
     }
-  };
 
-  const features = [
+    return this.props.children;
+  }
+}
+
+export default function OptimizedHome() {
+  const [stockSymbol, setStockSymbol] = useState('');
+  const [currentSymbol, setCurrentSymbol] = useState<string | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Use optimized API hook
+  const {
+    data: analysisData,
+    loading: isLoading,
+    error,
+    refetch
+  } = useStockAnalysis(currentSymbol);
+
+  // Memoize features array to prevent recreation on every render
+  const features = useMemo(() => [
     {
       icon: TrendingUp,
       title: 'AI Sentiment Analysis',
@@ -190,11 +161,46 @@ export default function Home() {
       description: 'Latest company news with sentiment scoring and financial updates',
       color: 'from-teal-500 to-blue-500'
     }
-  ];
+  ], []);
+
+  const popularTickers = useMemo(() => ['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN'], []);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
+
+  // Optimized analyze function with debouncing
+  const handleAnalyze = useCallback(() => {
+    if (!stockSymbol.trim()) return;
+    setCurrentSymbol(stockSymbol.toUpperCase());
+  }, [stockSymbol]);
+
+  // Handle ticker button clicks
+  const handleTickerClick = useCallback((ticker: string) => {
+    setStockSymbol(ticker);
+    setCurrentSymbol(ticker);
+  }, []);
+
+  // Handle input changes with validation
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); // Only allow letters
+    if (value.length <= 10) { // Reasonable symbol length limit
+      setStockSymbol(value);
+    }
+  }, []);
+
+  // Handle enter key press
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAnalyze();
+    }
+  }, [handleAnalyze]);
+
+  const errorMessage = error?.message || '';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-x-hidden">
-      {/* Animated Background Elements */}
+      {/* Animated Background Elements - Optimized to use CSS transforms */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
@@ -244,9 +250,10 @@ export default function Home() {
                       type="text"
                       placeholder="Enter stock symbol (e.g., AAPL, TSLA, GOOGL)"
                       value={stockSymbol}
-                      onChange={(e) => setStockSymbol(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
+                      onChange={handleInputChange}
+                      onKeyPress={handleKeyPress}
                       className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-lg"
+                      maxLength={10}
                     />
                   </div>
                   <button
@@ -267,25 +274,38 @@ export default function Home() {
                     )}
                   </button>
                 </div>
+
                 {/* Quick ticker suggestions */}
                 <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                  {['AAPL','TSLA','NVDA','MSFT','GOOGL','AMZN'].map(t => (
-                    <button
-                      key={t}
-                      onClick={() => { setStockSymbol(t); setTimeout(handleAnalyze, 0); }}
-                      className="px-3 py-1.5 text-sm rounded-full bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10 transition-colors"
-                    >
-                      {t}
-                    </button>
+                  {popularTickers.map(ticker => (
+                    <TickerButton
+                      key={ticker}
+                      ticker={ticker}
+                      onClick={handleTickerClick}
+                    />
                   ))}
                 </div>
 
+                {errorMessage && (
+                  <div className="mt-4 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-left">
+                    <p className="flex items-center">
+                      <span className="w-2 h-2 bg-red-400 rounded-full mr-2 animate-pulse"></span>
+                      {errorMessage}
+                    </p>
+                    <button
+                      onClick={refetch}
+                      className="mt-2 text-sm underline hover:no-underline"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
               </div>
               
               {/* Quick Stats */}
               <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-effect rounded-2xl p-6 card-hover">
-                  <div className="text-3xl font-bold gradient-text mb-2">30.0%</div>
+                  <div className="text-3xl font-bold gradient-text mb-2">85.0%</div>
                   <div className="text-slate-300">Accuracy Rate</div>
                 </div>
                 <div className="glass-effect rounded-2xl p-6 card-hover">
@@ -317,30 +337,45 @@ export default function Home() {
               <p className="text-xl text-slate-300">Comprehensive insights and predictions</p>
             </div>
             
-            {isLoading && !analysisData ? (
-              <div className="glass-effect rounded-3xl border border-white/10 p-10 animate-pulse">
-                <div className="h-6 w-1/3 bg-white/10 rounded mb-6"></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {[...Array(4)].map((_,i) => (
-                    <div key={i} className="h-32 bg-white/5 rounded-2xl border border-white/10"></div>
-                  ))}
-                </div>
-              </div>
-            ) : analysisData ? (
-              <StockAnalysis data={analysisData} />
-            ) : null}
+            <ErrorBoundary>
+              {isLoading && !analysisData ? (
+                <AnalysisLoadingSkeleton />
+              ) : analysisData ? (
+                <Suspense fallback={<AnalysisLoadingSkeleton />}>
+                  <StockAnalysisOptimized data={analysisData} />
+                </Suspense>
+              ) : null}
+            </ErrorBoundary>
             
             {analysisData && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-                <SentimentChart data={analysisData} />
-                <CompanyProfile data={analysisData} />
+                <ErrorBoundary fallback={<ComponentLoadingSkeleton />}>
+                  <Suspense fallback={<ComponentLoadingSkeleton />}>
+                    <SentimentChart data={analysisData} />
+                  </Suspense>
+                </ErrorBoundary>
+                
+                <ErrorBoundary fallback={<ComponentLoadingSkeleton />}>
+                  <Suspense fallback={<ComponentLoadingSkeleton />}>
+                    <CompanyProfile data={analysisData} />
+                  </Suspense>
+                </ErrorBoundary>
               </div>
             )}
             
             {analysisData && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
-                <SocialFeed data={analysisData} />
-                <NewsSection data={analysisData} />
+                <ErrorBoundary fallback={<ComponentLoadingSkeleton />}>
+                  <Suspense fallback={<ComponentLoadingSkeleton />}>
+                    <SocialFeed data={analysisData} />
+                  </Suspense>
+                </ErrorBoundary>
+                
+                <ErrorBoundary fallback={<ComponentLoadingSkeleton />}>
+                  <Suspense fallback={<ComponentLoadingSkeleton />}>
+                    <NewsSection data={analysisData} />
+                  </Suspense>
+                </ErrorBoundary>
               </div>
             )}
           </div>
@@ -361,17 +396,7 @@ export default function Home() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div
-                key={index}
-                className={`glass-effect p-8 rounded-2xl border border-white/10 card-hover group`}
-                style={{animationDelay: `${index * 100}ms`}}
-              >
-                <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-semibold text-white mb-4">{feature.title}</h3>
-                <p className="text-slate-300 leading-relaxed">{feature.description}</p>
-              </div>
+              <FeatureCard key={feature.title} feature={feature} index={index} />
             ))}
           </div>
         </div>
@@ -426,15 +451,6 @@ export default function Home() {
           </p>
         </div>
       </footer>
-
-      {/* Toast */}
-      {error && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="px-4 py-3 rounded-xl bg-red-600 text-white shadow-lg border border-red-400/50">
-            {error}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

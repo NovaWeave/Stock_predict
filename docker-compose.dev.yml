@@ -1,0 +1,116 @@
+# Docker Compose override for development environment
+version: '3.8'
+
+services:
+  backend:
+    build:
+      target: development
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      - ./backend:/app
+      - backend_logs:/app/logs
+    ports:
+      - \"5000:5000\"
+      - \"5678:5678\"  # Debug port
+    command: >
+      sh -c \"python -m pytest --cov=. --cov-report=html --cov-report=term &&
+             python app.py\"
+
+  frontend:
+    build:
+      target: development
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - \"3000:3000\"
+    command: npm run dev
+
+  redis:
+    ports:
+      - \"6379:6379\"
+    
+  # Test runner service
+  test-backend:
+    build:
+      context: ./backend
+      target: development
+    container_name: stock-sentiment-test-backend
+    volumes:
+      - ./backend:/app
+    environment:
+      - FLASK_ENV=testing
+      - MOCK_DATA_ENABLED=true
+    networks:
+      - stock-sentiment-network
+    command: >
+      sh -c \"python -m pytest --cov=. --cov-report=html --cov-report=term -v &&
+             python -m pytest --cov=. --cov-report=xml\"
+    profiles:
+      - testing
+
+  test-frontend:
+    build:
+      context: ./frontend
+      target: development
+    container_name: stock-sentiment-test-frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+    networks:
+      - stock-sentiment-network
+    command: npm run test:ci
+    profiles:
+      - testing
+
+  # Database for development (optional)
+  postgres:
+    image: postgres:15-alpine
+    container_name: stock-sentiment-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=stock_sentiment
+      - POSTGRES_USER=developer
+      - POSTGRES_PASSWORD=devpassword
+    ports:
+      - \"5432:5432\"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - stock-sentiment-network
+    profiles:
+      - database
+
+  # PgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: stock-sentiment-pgadmin
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - \"8080:80\"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - stock-sentiment-network
+    depends_on:
+      - postgres
+    profiles:
+      - database
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local

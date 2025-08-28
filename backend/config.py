@@ -1,10 +1,16 @@
 import os
 from datetime import timedelta
+from utils.security import get_secure_config_value, validate_cors_origins, SecurityConfig
 
 class Config:
-    """Base configuration class"""
+    """Base configuration class with security best practices"""
+    
+    def __init__(self):
+        """Initialize configuration with validation"""
+        self._validate_environment()
+    
     # Flask Configuration
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'ff7300cabf7ebad2fee55dc1cc115ef219178cbe276aff7aa04b4f2a78280b1e')
+    SECRET_KEY = get_secure_config_value('SECRET_KEY', required=False) or 'dev-secret-key-change-in-production'
     FLASK_ENV = os.environ.get('FLASK_ENV', 'production')
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
@@ -34,7 +40,7 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
     
     # CORS Configuration
-    CORS_ORIGINS = [o.strip() for o in os.environ.get('CORS_ORIGINS', 'http://localhost:3000,https://yourdomain.com').split(',') if o.strip()]
+    CORS_ORIGINS = validate_cors_origins(os.environ.get('CORS_ORIGINS', 'http://localhost:3000'))
     CORS_METHODS = ['GET', 'POST', 'OPTIONS']
     CORS_ALLOW_HEADERS = ['Content-Type', 'Authorization']
     
@@ -42,18 +48,18 @@ class Config:
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     
-    # Data Sources Configuration
-    REDDIT_CLIENT_ID = os.environ.get('REDDIT_CLIENT_ID', 'placeholder')
-    REDDIT_CLIENT_SECRET = os.environ.get('REDDIT_CLIENT_SECRET', 'placeholder')
+    # Data Sources Configuration (remove defaults for security)
+    REDDIT_CLIENT_ID = os.environ.get('REDDIT_CLIENT_ID')
+    REDDIT_CLIENT_SECRET = os.environ.get('REDDIT_CLIENT_SECRET')
     REDDIT_USER_AGENT = os.environ.get('REDDIT_USER_AGENT', 'StockSentimentBot/1.0')
     
-    X_BEARER_TOKEN = os.environ.get('X_BEARER_TOKEN', 'placeholder')
-    X_API_KEY = os.environ.get('X_API_KEY', 'placeholder')
-    X_API_SECRET = os.environ.get('X_API_SECRET', 'placeholder')
-    X_ACCESS_TOKEN = os.environ.get('X_ACCESS_TOKEN', 'placeholder')
-    X_ACCESS_TOKEN_SECRET = os.environ.get('X_ACCESS_TOKEN_SECRET', 'placeholder')
+    X_BEARER_TOKEN = os.environ.get('X_BEARER_TOKEN')
+    X_API_KEY = os.environ.get('X_API_KEY')
+    X_API_SECRET = os.environ.get('X_API_SECRET')
+    X_ACCESS_TOKEN = os.environ.get('X_ACCESS_TOKEN')
+    X_ACCESS_TOKEN_SECRET = os.environ.get('X_ACCESS_TOKEN_SECRET')
     
-    FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', 'placeholder_finnhub_key')
+    FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY')
     
     # Mock Data Configuration
     MOCK_DATA_ENABLED = os.environ.get('MOCK_DATA_ENABLED', 'True').lower() == 'true'
@@ -67,6 +73,25 @@ class Config:
     
     # Redis Configuration (for future use)
     REDIS_URL = os.environ.get('REDIS_URL')
+    
+    @staticmethod
+    def _validate_environment():
+        """Validate environment configuration"""
+        # No required vars for basic operation with fallbacks
+        required_vars = []
+        missing_vars = [var for var in required_vars if not os.environ.get(var)]
+        
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+        
+        # Warn about missing optional but important variables
+        optional_vars = ['REDDIT_CLIENT_ID', 'FINNHUB_API_KEY']
+        missing_optional = [var for var in optional_vars if not os.environ.get(var)]
+        
+        if missing_optional:
+            import logging
+            logger = logging.getLogger(__name__)
+            self.logger.warning(f"Missing optional API keys: {', '.join(missing_optional)}")
 
 class DevelopmentConfig(Config):
     """Development configuration"""
@@ -82,7 +107,7 @@ class ProductionConfig(Config):
     FLASK_ENV = 'production'
     SESSION_COOKIE_SECURE = True
     LOG_LEVEL = 'WARNING'
-    MOCK_DATA_ENABLED = False
+
 
 class TestingConfig(Config):
     """Testing configuration"""

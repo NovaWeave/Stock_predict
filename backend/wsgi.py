@@ -1,4 +1,4 @@
-from stock_sentiment import app as application
+from app import app as application
 
 # Ensure the application is loaded for WSGI servers
 app = application
